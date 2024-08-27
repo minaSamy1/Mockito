@@ -1,0 +1,591 @@
+- Unit tests are designed to test the behavior of specific classes or methods without relying on the behavior of their dependencies. 
+  Since we’re testing the smallest “unit” of code,
+ we don’t need to use actual implementations of these dependencies. Furthermore, 
+ we use slightly different implementations of these dependencies when testing different behaviors.
+ A traditional, well-known approach here is to create “stubs”—specific implementations of an interface suitable for a given scenario.
+ Such implementations usually have hard-coded logic. A stub is a kind of test double; 
+    - Examply of “stubs”
+ /// the complex here we need to define subClass for each testcase  so if we use the database it
+class SomeDataServiceSub implements SomeDataServivces {
+
+
+    @Override
+    public int[] getnumbers() {s
+        return new int[]{0, 1, 3};
+    }
+}
+
+
+
+What Is a Mock?
+In unit testing, a mock is a created object that implements the behavior of a real subsystem in controlled ways.
+ In short, mocks are used as a replacement for a dependency.
+ 
+     BussinessImpl bussiness = new BussinessImpl();
+  SomeDataServivces dataServiceMok = mock(SomeDataServivces.class);
+  when(dataServiceMok.getnumbers()).thenReturn(new int[]{0, 1, 3});
+    assertEquals(bussiness.calculatewithServices(), 4);
+	
+	
+	
+	in code  
+	   public class BussinessMokTests {
+		   
+    BussinessImpl bussiness = new BussinessImpl();
+    SomeDataServivces dataServiceMok = mock(SomeDataServivces.class);
+	
+	
+
+    @Test
+    public void runSuccessTest() {
+
+
+        when(dataServiceMok.getnumbers()).thenReturn(new int[]{0, 1, 3});
+       bussiness.setSomeDataServices(dataServiceMok);
+
+        assertEquals(bussiness.calculatewithServices(), 4);
+
+
+    }
+	
+	let's now reduce the code more by @Mocks  , @MockInject 
+	
+	
+	instead the below code    	
+
+1- 
+   SomeDataServivces dataServiceMok = mock(SomeDataServivces.class); >> become
+    @Mock
+    SomeDataServivces dataServiceMok  ;//= mock(SomeDataServivces.class);
+
+	
+    BussinessImpl bussiness = new BussinessImpl();    >>> become      
+	
+	@InjectMocks   
+     	BussinessImpl bussiness ;
+      so we wil not need this line in any unitest >>>    bussiness.setSomeDataServices(dataServiceMok);
+
+
+
+so final unit test
+@ExtendWith(MockitoExtension.class)
+   public class BussinessMokTests {
+    @Mock
+    SomeDataServivces dataServiceMok  ;
+
+    @InjectMocks
+    BussinessImpl bussiness ;
+
+	
+	  @Test
+    public void runSuccessTest() {
+
+        when(dataServiceMok.getnumbers()).thenReturn(new int[]{0, 1, 3});
+        assertEquals(bussiness.calculatewithServices(), 4);
+
+    }
+	
+   }
+
+
+----------------------------------- Working WithLsit ------------------
+1- define how to add value
+2- define the verification if this method inside the class called or not
+3- deinfe how to get value of the paramter which send as paratmer to method
+4- deinfe how to get  all value of the paramter which send as paratmer to method
+5- define by method whats difference betweem the mocks and spy
+   
+    In summary, while both mock and spy objects are used for testing,
+	mock objects are typically simulated replacements for real objects used to define and verify behavior expectations, 
+	while spy objects are real objects that are augmented to observe and record interactions for later verification.
+	 
+	 
+	    System.out.println(arraylistMock.get(0));    // will print null
+        System.out.println("size 1 :"+ arraylistMock.size());   will print 0
+        arraylistMock.add("test1");
+        arraylistMock.add("test2");
+	    System.out.println("size 1 :"+ arraylistMock.size());   will print 0 aslo in case we already add element
+		
+		when(arraylistMock.size()).thenReturn(4);  /// here we start to invoke on the object
+        System.out.println("size 3 :"+ arraylistMock.size());    /// will return 4 as we set this size
+		
+		
+		
+		lic void spying()
+    {
+        /// mock not
+        ArrayList arraylistSpy = spy(ArrayList.class);
+       // System.out.println(arraylistSpy.get(0)); // as the object be come real so it's lead to IndexOutOfBoundsException
+
+        arraylistSpy.add("test1");
+        System.out.println( "read get(0)" +arraylistSpy.get(0));   // will print Test1
+        System.out.println("size 1 :"+ arraylistSpy.size());      // will print 1
+		
+		
+        when(arraylistSpy.size()).thenReturn(4);
+        System.out.println("size 3 :"+ arraylistSpy.size());    // will print 4 
+		
+		
+ ----------------------------------- Mcokito with RestApi  Controller ---------------------------
+ we will know how to test api 
+    1- return with String
+	2- return json object 
+	3- return array of object
+ 
+   @GetMapping(value="/hello")
+    public String test()
+    {
+        System.out.println(" im in the Reall controller");
+        return "Hello-World";
+    }
+
+- the unit test
+		@WebMvcTest(HelloWorldController.class  /// define which controller 
+		public class HelloWorldControllerTest {
+			@Autowired
+			private MockMvc mockMvc;
+			@Test
+			public void test_basic() throws Exception {
+				   /// 1- defining the URL of Api
+				RequestBuilder req = MockMvcRequestBuilders
+						.get("/hello").
+						accept(MediaType.APPLICATION_JSON_VALUE);
+						
+					/// 2- call api
+				MvcResult result = mockMvc.perform(req).andReturn();
+				
+				// asseration
+				assertEquals("Hello-World", result.getResponse().getContentAsString());
+
+
+			}
+		}
+  
+  
+  
+  2- the secod way is to expect the result from api it if the accpected is corrent then pass the test case 
+    @Test
+    public void test_basic() throws Exception {
+        RequestBuilder req = MockMvcRequestBuilders
+                .get("/hello").
+                accept(MediaType.APPLICATION_JSON_VALUE);
+        MvcResult result = mockMvc.perform(req)
+                .andExpect(status().isOk())                                   /// here we expect to api return 200 OK   if the api return acutly reurn for example 202 will failed the tet unit
+                .andExpect(content().string("Hello-World")).andReturn();    // here we expect return Hello-world if anther keyword the unittest will faild
+              // no need for assetion
+   
+
+    }
+	
+	
+	
+3- tyb ana delw2ty 3ndy api w ana 3awez a3ml check 3al el result bt3 el json elly rag3
+
+@GetMapping(value="/items")
+    public Item dummyItems()
+    {
+
+		return new Item(5,"cars",3,1000);    /// return as josn
+    }
+  
+   @Test
+    public void test_basic() throws Exception {
+        RequestBuilder req = MockMvcRequestBuilders
+                .get("/items").
+                accept(MediaType.APPLICATION_JSON_VALUE);
+
+        MvcResult result = mockMvc.perform(req)
+                .andExpect(status().isOk())
+                .andExpect(content().json("{\"id\":58,\"name\":\"cars\",\"quantity\":3,\"price\":1000}")).andReturn();
+				/// here the json we expect not match the actual json return from api so the unit test will faild
+				
+				// can check also one value in json
+				 .andExpect(content().json("{\"id\":5}")).andReturn();   //>>>>>>>>. import 
+
+    }
+  
+  
+  
+-----------------------    @MockBean   in controller where the api depend on the Repo  ==========
+		- summary in the testing class we need to mock the repo class and make it return the value 
+		and the api will use the return from the repo   
+		
+		
+	1- Repo
+		
+		@Component
+		public class ItemRepo {
+
+				public Item retriveItems() {
+      
+												return new Item(5, "kola", 4, 55);
+									}
+	
+	2- Controller 
+	   
+		   
+		 @GetMapping(value="/itemsReal")
+				public Item realItems()
+				{
+
+					System.out.println( "Enter the Controller  for this api");
+					return  itemRepo.retriveItems();
+				}
+				
+	3- testing     ( here we receive object as json )
+				@MockBean
+				  private ItemRepo itemRepo;           /// here we mock the depency repo 
+						@Test
+						public void test_RealData_FromRepo() throws Exception {
+
+							when(itemRepo.retriveItems()).thenReturn( new Item(2,"kola",4,55));    /// here we set the value for method which we depend on it in the controller
+							RequestBuilder req = MockMvcRequestBuilders
+									.get("/itemsReal").
+									accept(MediaType.APPLICATION_JSON_VALUE);
+
+
+							MvcResult result = mockMvc.perform(req)
+									.andExpect(status().isOk())                      // we expect to return 200
+									.andExpect(content().json("{\"id\":2,\"name\":\"kola\",\"quantity\":4,\"price\":55}")).andReturn();  // we expect this json
+						}
+						
+						
+						
+		------------------------ incase we  have api depend on service which receive the list of object return from DB -----------------
+		
+		
+		
+	1- our services call from repo DB 
+	
+	  public List<Item> retriveItemsfromDB() {
+        List<Item> items = repo.findAll();            ///////// jpa Repo 
+        System.out.println("size of item list " + items.size());
+        for (Item item : items) {
+
+            item.setValue(item.getPrice() * item.getQuantity());
+        }
+        return items;
+
+    }
+	
+	
+	2- controller  
+	
+	   @GetMapping(value="/itemsRealDB")
+    public List<Item> realItemsDB()
+    {
+        return  itemServices.retriveItemsfromDB();
+    }
+	
+	
+	
+	
+	3- Testing unit for api return data (   array of Object )  from services 
+	
+	            //[
+						//        {
+						//            "id": 1,
+						//                "name": "product1",
+						//                "quantity": 4,
+						//                "price": 100,
+						//                "value": 400
+						//        },
+						//        {
+						//            "id": 2,
+						//                "name": "product2",
+						//                "quantity": 43,
+						//                "price": 32,
+						//                "value": 1376
+						//         }
+				//        ]
+	
+	@Test
+    public void test_RealData_FromRepo() throws Exception {
+
+
+        // we consider as the ItemService run well and returned with the blow json
+        when(itemServices.retriveItemsfromDB()).thenReturn(
+
+                Arrays.asList(
+                        new Item(2, "kola", 4, 55),
+                        new Item(3, "Pepsico", 4, 3)
+                )
+
+        );
+        RequestBuilder req = MockMvcRequestBuilders
+                .get("/itemsRealDB").
+                accept(MediaType.APPLICATION_JSON_VALUE);
+
+        MvcResult result = mockMvc.perform(req)
+                .andExpect(status().isOk())
+				     /// kindly note here we define the response as array of objects as
+                .andExpect(content().json("[{\"id\":2,\"name\":\"kola\",\"quantity\":4,\"price\":8},{}]")).andReturn(); 
+    }
+	
+	
+### if we change any value in expected json 
+   1- java.lang.AssertionError: [0] Could not find match for element {"quantity":4,"price":98,"name":"kola","id":2}
+   2- java.lang.AssertionError:   Expected: a JSON object   got: a JSON array    ( this because expect the return as json object not array )
+ 
+ 
+ 
+ 
+ 
+ ------------------------------- unit testing for Api typ HTTP POST -------------------------
+   - it same as the Get Api but here we send the body of requsest  in MockMvcRequestBuilders
+    
+	1-  the api
+		@PostMapping (value="/item")
+		public void insertItm( Item item)
+		{
+			System.out.println( " read obect "+ item.toString());
+		}
+ 
+ 
+ 2- the unit Test
+     @Test
+    public void test_Post() throws Exception {
+        RequestBuilder req = MockMvcRequestBuilders.
+		post("/item").                   >>>>>>>>>>>>>>>> here we define it as POST Request
+		content("{\"id\":2,\"name\":\"kola\",\"quantity\":4,\"price\":8}").   >>>>>>>>>>> send the body object
+		contentType(MediaType.APPLICATION_JSON_VALUE);
+
+
+
+        MvcResult result = mockMvc.perform(req).
+                andExpect(status().isOk())                >>>>>>>> here we expect return with success 200 OK
+                .andReturn();
+
+
+    }
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+  ------------------------------------- Mockito testing  with Services layer  --------------------------
+  
+  1- Services class  used method from Repo class as depency 
+      here we will make unit test for this services  and will consider the repo run well 
+	  
+	  
+	- Service 
+	
+	
+	public List<Item> retriveItemsfromDB() {
+        List<Item> items = repo.findAll();                       /// call method from our jpaRepo  which get all items we have
+        System.out.println("size of item list " + items.size());
+        for (Item item : items) {
+
+            item.setValue(item.getPrice() * item.getQuantity());  /// make some bussiness as we set value for attribute value = price*Quantiy
+        }
+        return items;
+
+    }
+	
+	
+  - testing 
+@ExtendWith(MockitoExtension.class)
+		public class ItemServicesTest {
+		
+			@Mock
+			    private ItemRepository itemRepository;
+			@InjectMocks
+			   private ItemServices itemServices;
+			
+			@Test
+			public void testDataFromDB() {
+                         /// where we conside and invoke as the method reurned with data
+				when(itemRepository.findAll()).thenReturn(
+						Arrays.asList(
+								new Item(3, "item3", 4, 5),
+								new Item(2, "item2", 1, 5)
+						)
+				);
+				List<Item> actual = itemServices.retriveItemsfromDB();   /// where we invoke our method in services class
+			
+				// where we check if the return value from the method equal the same value if we darbna 4*5 from first object
+				// fa akn de el unit test 3al4n check 3al getValue momken ykon 3ndy nuit
+				assertEquals(actual.get(0).getValue(), 220);   
+				////assertEquals(actual.get(0).getValue(), 20);
+			}
+		}
+		
+org.opentest4j.AssertionFailedError: 
+Expected :20
+Actual   :220
+
+
+
+--------------------------  @DataJpaTest  Mockito with database Repo layer  --------------------------
+
+1- if we have repo and need to check the data which return from database is correct 
+  kindly note we did'nt have every think n databasebut we consider we run script insert statment and 
+  validate the data from it 
+  
+  @DataJpaTest >> this very import annotation while you test data layer as this anniotation start the DB and create the table and run the .sql  ( i talk as i used h2 DB )
+   
+  
+  1- JPA Repo 
+  
+  public interface ItemRepository extends JpaRepository<Item,Integer> { }
+  
+  
+  - test case 
+      -1 we check number of row return from DB same as we insert 
+	  
+	  @DataJpaTest
+	public class itemRepositoryTest {
+			@Autowired
+			private ItemRepository itemRepository;
+
+			@Test
+			public void testFindAll() {
+				List<Item> items = itemRepository.findAll();  //// here we call this function which return with list of Item in DB
+				System.out.println(" count of row returned from DB " + items.size());
+				assertEquals(items.size(), 3);   // we expect to return with 3 
+
+			}
+			
+			
+	 - here we need to check the other function in our repo which is findById()
+	 
+	 
+    @Test
+    public void testFindById() {
+        Optional<Item> item = itemRepository.findById(2);
+        System.out.println(" read Name : " + item.get().getName());
+        assertEquals(item.get().getName(), "product27");   /// unit test to check after we return the item which has id 2 this item name is product27
+    }
+	
+	
+	
+--------------------------------------------------------- Intgeration with api --------------------------------
+
+
+- we need to make unit test for api internal i mean not to test the controller or the service or the data layer
+   i need to test the APi ( with all layer  ( controller +service+Repo )
+   
+   
+   
+   @SpringBootTest(webEnvironment= SpringBootTest.WebEnvironment.RANDOM_PORT)
+
+public class ItemContextIntegration {
+
+    @Autowired
+    private TestRestTemplate testRestTemplate;   /// for call rest Api
+    @Test
+    public void loadContext() throws JSONException {
+
+        String response = testRestTemplate.getForObject("/itemsRealDB", String.class);   /// call our internal Api > which call Service >> which get date Repo form DB
+        System.out.println(" Reading the response "+response);
+        JSONAssert.assertEquals("[{id:1},{id:2},{id:3]", response,false);  /// checking the response have the same id and cout of json object
+
+
+    }
+	
+	
+	----------------------------------------- Configuration notes ----------------------------------
+	1- we can have configuration related to testing unit 
+	   - so we can create our own application.properities >> whcih have other configuration than we have in our spring boot
+	   - we can aslo have our own DB script which run in testing 
+	   
+	     spring.application.name=demo
+		spring.jpa.show-sql=true
+		spring.h2.console.enabled=false
+		spring.jpa.hibernate.ddl-auto=update
+   
+   
+   
+   --------------------------------------------  Other Topic-----------------------------------------------------------
+	  
+- there is mant topic make writing unit testing more esaily 
+
+1- JsonPath >> we can make oporation and Query on the Json and get speacfic info from returned json
+    @Test
+    public void learning()
+    {
+
+        String responseFromService = "[" +
+                "{\"id\":10000, \"name\":\"Pencil\", \"quantity\":5}," +
+                "{\"id\":10001, \"name\":\"Pen\", \"quantity\":15}," +
+                "{\"id\":10002, \"name\":\"Eraser\", \"quantity\":10}" +
+                "]";
+
+        DocumentContext documentContext= JsonPath.parse(responseFromService);
+         int numberOfObject = documentContext.read("$.length()");
+        System.out.println(" returned jspn contain >>  "+numberOfObject +" Object");
+
+        System.out.println(" read first object "+documentContext.read("$.[0]"));
+        System.out.println(" read from zero to third object >> "+documentContext.read("$.[0:3]"));
+        System.out.println(" read the object from  the json which have name :ESAR : >>  "+ documentContext.read("$.[?(@.name=='Eraser')]").toString());
+        System.out.println(" read the object from  the json which have quantity :5 : >>  "+documentContext.read("$.[?(@.quantity==5)]").toString());
+
+    }
+}
+
+
+
+
+
+
+
+1- hamcrest 
+	    is a framework for writing matcher objects allowing ‘match’ rules to be defined declaratively.
+	   There are a number of situations where matchers are invaluable, such as UI validation or data filtering,
+	   but it is in the area of writing flexible tests that matchers are most commonly used. 
+	   This tutorial shows you how to use Hamcrest for unit testing.
+	   
+	   --- every one is consider as asseration in unit test
+				   
+					@Test
+				public void learning() {
+					List<Integer> myList = Arrays.asList(12,15,45);
+
+					assertThat(myList, hasSize(3));
+					assertThat(myList, hasItems(12,45));
+					assertThat(myList, everyItem(greaterThan(10)));
+					assertThat(myList, everyItem(lessThan(100)));
+
+					assertThat("", isEmptyString());
+					assertThat("ABCDE", containsString("BCD"));
+					assertThat("ABCDE", startsWith("ABC"));
+					assertThat("ABCDE", endsWith("CDE"));
+
+				}
+	
+2- AssertJtest 
+
+@Test
+	public void learning() {
+		List<Integer> numbers = Arrays.asList(12,15,45);
+		
+		//assertThat(numbers, hasSize(3));
+		assertThat(numbers).hasSize(3)
+						.contains(12,15)
+						.allMatch(x -> x > 10)
+						.allMatch(x -> x < 100)
+						.noneMatch(x -> x < 0);
+		
+		assertThat("").isEmpty();
+		assertThat("ABCDE").contains("BCD")
+						.startsWith("ABC")
+						.endsWith("CDE");		
+	}
+	
+	
+	
+	---------------------- run Coverage report-------------------------------------
+
+
+1-The coverage reports aims to identify which lines in your source code in your source main Java code
+are not covered or not run by a unit.
+The coverage is important, but only when it goes along with proper asserts. which mandatory in each unit test to have asseration 
+of the unit test run without no assesration it's condsider not good and coverage aslo not 
+
+				
+				
+	-----------------------------------------------------   -------------------------------------------------
