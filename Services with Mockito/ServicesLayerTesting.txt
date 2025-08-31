@@ -1,0 +1,451 @@
+
+
+Services Layer Testing :
+          where we already test the logic of method  SO it's  Unit test
+	      and incase the our method depend on anthor method or class we need to 
+		  make a fake call for this method as return the data to continue or logic 
+		  
+
+
+Mocking :  
+       we use this techique to simualte that we are calling other method from anthor service or class 
+	   
+	   
+ common annotion 
+   0- @ExtendWith(MockitoExtension.class)
+   1- @Mock        >> use it above the class which i call it and return fakse result
+   2- @InjectMock  >> use it above the class which i will test it and also this class depent on other repo or class
+   @Verify   >>> to make sure your method already called 
+   
+   
+ Hint's 
+     - for mocking method return void using doNothing() [ doNothing().when(repo).deleteById(anyLong()); ] 
+	 
+	 - for mocking method void mehtod can throw exception 
+	          doThrow( new RuntimeException(" No Author")).when(repo).deleteById(anyLong());
+			  
+			  
+			  
+      - For assertion exeception 
+     String exceptionMessage = 
+	                   Assertions.assertThrows(  RuntimeException.class ,
+      					   ()-> services.deleteAuthor(1L))
+						 .getMessage();	  
+						 
+						 
+	 - the idea of verify that the method it's called it's very important
+	     l2n mathln el momken tkon el mehtod void w m4 hatrmy exception 
+		 fa ana fe el a7la de 3al el 2al atk2d enha called 
+	        verify(repo, times(1)).save(any());
+			
+   - when you mock any method which return with List 
+          not recommended to say [  thenReturn ( null )  ]
+		   you can  do ( thenReturn( Collections.emptyList() )
+  
+  -  you can use @DisplayName(" " ) to add description for your test method
+  
+  - note takecare about that it will give you error incase you know that the method 
+      return value  and you consider it as void 
+	  for example  :   repo.save(E)  >> it return object 
+	  
+	  we can mock it by   doNothing().when(rep).save(any() ) //// NAAA man 
+	  
+	  
+  - it's not recommened to pass paramter to the services as ( anyString() , anyBoolean )  no pass actual value  book1 , true
+  
+   -- in some cases that the method have condition so you must write cases for each condition to check if it tested or not
+  
+ -Notes : 
+      1- incase i test services which return with projection interface as you know it have only getMethod so we can't return it as object 
+	      so we use as anyounms class
+             List<CustomBook> customBookList = Arrays.asList(
+
+                new CustomBook() {
+                    @Override
+                    public Long getId() {
+                        return 1L;
+                    }
+
+                    @Override
+                    public String getTitle() {
+                        return "book1";
+                    }
+
+                    @Override
+                    public String getFullDesc() {
+                        return "book1 mina";
+                    }
+                }
+				
+				
+				
+	2- incase mehtod should return with value but i need to test Exception 
+	      1- mock to throw exception
+		           when(repo.findByTitle(anyString())).thenThrow(NullPointerException.class);
+
+		  2- Assertion direct 
+				    Assertions.assertThrows(NullPointerException.class, () -> services.getBookByTitle(anyString()));
+				
+		  3- verify that the repo is called 
+		        verify(repo, times(1)).findByTitle(anyString());
+				
+				
+				
+   3- incase you test pageble in repo you must create pagable as standlone variable and then pass it as paramter 
+				 int page = 0;
+				int size = 5;
+				String sortBy = "title";
+				String sortType="asc";
+
+				Sort sort = Sort.by(sortBy).ascending();
+				Pageable pageable = PageRequest.of(page, size, sort);
+				
+				
+	       Page<Book> pageableBook = new PageImpl<>(books);
+           when(repo.findAll(pageable)).thenReturn(pageableBook);	
+	         			
+				
+
+ - General Idea 
+      - findAll () 
+	       - happy to check that it return result 
+		   - worest to return empty or throw exception
+	  - for any method like delete or update
+	         - make sure that it's called  by ( verify(repo,time(1)).deleteById() )
+			 
+		
+			 
+	- lw enta 3awez b2a ttk2ed en el data deleted or update in DB so it will be Integration Testing so 
+	   you will test together service+Repo
+	   
+	   
+		@DataJpaTest
+		@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+		@Transactional
+		public class BookRepositoryIntegrationTest {
+
+			@Autowired
+			private TestEntityManager entityManager;
+
+			@Autowired
+			private BookRepository repo;
+
+			@Test
+			void testSoftDeleteBookUpdatesIsDeleted() {
+				// Arrange: إنشاء كتاب وهمي
+				Book book = new Book();
+				book.setTitle("Test Book");
+				book.setIsDeleted(false);
+				entityManager.persist(book);
+				entityManager.flush();
+
+				// Act: تنفيذ الـ update
+				repo.softDeleteBook(book.getId());
+				entityManager.clear(); // عشان نجيب نسخة جديدة من الـ DB
+
+				// Assert: التأكد إن الـ isDeleted بقى true
+				Book updatedBook = entityManager.find(Book.class, book.getId());
+				assertTrue(updatedBook.getIsDeleted());
+			}
+		}
+		
+	🟢 1. Basic Operations
+
+	 save() returns the same entity or the expected ID.
+
+	 findAll() returns all records.
+
+	 findById / findByTitle returns the correct result (or empty if not found).
+
+	🔵 2. Edge Cases
+
+	 Input = null → service throws an Exception or rejects it.
+
+	 Empty list → service returns empty without crashing.
+
+	 Invalid ID (not present in DB).
+
+	🟠 3. Negative Cases
+
+	 Repository throws an Exception (e.g., DataAccessException).
+
+	 Transactional method rolls back (e.g., save fails midway in a batch).
+
+	 Soft delete/update when the record does not exist.
+
+	🟣 4. Business Logic
+
+	 Any condition/calculation (e.g., markAvailable should flip a flag → test before/after).
+
+	 Custom queries (e.g., repo.getCustomBooks()).
+
+	⚫ 5. Technical Checks
+
+	 Mock repository methods correctly (verify() that methods were called with the right arguments).
+
+	 Pagination: page, size, sortBy, sortType → returns expected order & size.
+
+	 Batch operations (saveAll, deleteAll) → ensure they are called once, not per item.
+		
+		
+		
+ Example : Testing BookService 
+ 
+ 
+ 
+@ExtendWith(MockitoExtension.class)
+public class BookServicesTest {
+
+    @InjectMocks
+    private BookServices services;
+
+    @Mock
+    private BooksRepo repo;
+
+
+    @Test
+    public void saveBookTest() {
+
+        when(
+                repo.save(any())
+        ).thenReturn(new Book(true, "dasd1432", 1L, 43, "book1"));
+
+        Book savedBook = services.addBook(new Book());
+
+        Assertions.assertNotNull(savedBook);
+        Assertions.assertEquals("book1", savedBook.getTitle());
+
+        verify(repo, times(1)).save(any());
+
+    }
+
+    @Test
+    public void savedBookFailed() {
+
+        when(repo.save(any())).thenReturn(null);
+
+
+        Book savedBook = services.addBook(new Book());
+        Assertions.assertNull(savedBook);
+
+        verify(repo, times(1)).save(any());
+
+    }
+
+    @Test
+    public void getBooksuccess() {
+
+
+        List<Book> bookList = Arrays.asList(
+
+                new Book(true, "123123", 1L, 23, "book1"),
+                new Book(false, "123zxczc", 2l, 43, "book2")
+        );
+
+        when(repo.findAll()).thenReturn(bookList);
+
+        List<Book> books = services.getBook();
+
+        Assertions.assertTrue(books.size() > 0);
+
+        verify(repo, times(1)).findAll();
+    }
+
+    @Test
+    public void getBookFailed() {
+
+
+        when(repo.findAll()).thenReturn(Collections.emptyList());
+
+        List<Book> books = services.getBook();
+        Assertions.assertTrue(books.isEmpty());
+    }
+
+
+    @Test
+    public void getBookByTitleTest() {
+
+        List<Book> bookList = Arrays.asList(
+
+                new Book(true, "123123", 1L, 23, "book1"),
+                new Book(false, "123zxczc", 2l, 43, "book2")
+        );
+
+
+        when(repo.findByTitle(anyString())).thenReturn(bookList);
+
+        List<Book> books = services.getBookByTitle(anyString());
+
+        Assertions.assertTrue(books.size() > 0);
+
+        Assertions.assertNotNull(books);
+
+        verify(repo, times(1)).findByTitle(anyString());
+
+
+    }
+
+    @Test
+    public void getbookByTitleFaild() {
+
+        when(repo.findByTitle(anyString())).thenThrow(NullPointerException.class);
+
+        Assertions.assertThrows(NullPointerException.class, () -> services.getBookByTitle(anyString()));
+
+        verify(repo, times(1)).findByTitle(anyString());
+
+    }
+
+
+    @Test
+    public void getBookByAvailability() {
+
+
+        List<Book> bookList = Arrays.asList(
+
+                new Book(true, "123123", 1L, 23, "book1"),
+                new Book(true, "123zxczc", 2l, 43, "book2")
+        );
+
+        when(repo.findByavailable(anyBoolean())).thenReturn(bookList);
+
+        List<Book> books = services.getBookByAvaliablity(anyBoolean());
+
+        Assertions.assertTrue(books.size() > 0);
+
+        verify(repo, times(1)).findByavailable(anyBoolean());
+
+
+    }
+
+
+    @Test
+    public void getBookByAvailabilityFaild() {
+
+
+        when(repo.findByavailable(anyBoolean())).thenReturn(Collections.emptyList());
+
+        List<Book> books = services.getBookByAvaliablity(anyBoolean());
+        Assertions.assertTrue(books.isEmpty());
+    }
+
+
+    @Test
+    public void getCustomBooks() {
+        List<CustomBook> customBookList = Arrays.asList(
+
+                new CustomBook() {
+                    @Override
+                    public Long getId() {
+                        return 1L;
+                    }
+
+                    @Override
+                    public String getTitle() {
+                        return "book1";
+                    }
+
+                    @Override
+                    public String getFullDesc() {
+                        return "book1 mina";
+                    }
+                },
+                new CustomBook() {
+                    @Override
+                    public Long getId() {
+                        return 2L;
+                    }
+
+                    @Override
+                    public String getTitle() {
+                        return "boook2";
+                    }
+
+                    @Override
+                    public String getFullDesc() {
+                        return "boook2 Marco";
+                    }
+                }
+
+        );
+
+        when(repo.getCutomeBooks()).thenReturn(customBookList);
+
+        List<CustomBook> cusotm = services.getBookCustomized();
+
+        Assertions.assertTrue(cusotm.size() > 0);
+
+        verify(repo, times(1)).getCutomeBooks();
+
+    }
+
+
+    @Test
+    public void getBookPagable() {
+        int page = 0;
+        int size = 5;
+        String sortBy = "title";
+        String sortType="asc";
+
+        Sort sort = Sort.by(sortBy).ascending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        List<Book> books = Arrays.asList(
+                new Book(true, "123123", 1L, 23, "book1"),
+                new Book(true, "123zxczc", 2l, 43, "book2")
+        );
+
+        Page<Book> pageableBook = new PageImpl<>(books);
+        when(repo.findAll(pageable)).thenReturn(pageableBook);
+
+
+        Page<Book> pageReturned =services.getBookspageable(page, size,sortBy, sortType);
+
+
+
+        Assertions.assertTrue(pageReturned.getTotalElements()>0);
+        Assertions.assertTrue(pageReturned.getTotalPages()>0);
+
+
+        ///verify(repo,times(1)).findAll(pageable);
+    }
+
+
+
+    @Test
+    public void softDeletedTest()
+    {
+
+
+        services.updateBookAsDeleted(anyLong());
+
+        verify(repo, times(1)).softDeleteBook(anyLong());
+
+    }
+
+
+    @Test
+    public void MarkBook()
+    {
+        List<Book> books = Arrays.asList(
+                new Book(true, "123123", 1L, 23, "book1"),
+                new Book(true, "123zxczc", 2l, 43, "book2")
+        );
+
+
+        when(repo.findAllById(anyCollection())).thenReturn(books);
+
+
+        when(repo.saveAll(books)).thenReturn(books) ;
+
+
+        List<Long> ids= Arrays.asList(1L,3L,5L,6L);
+        services.markBookAsAvaliable(ids);
+
+
+        verify(repo,times(1)).findAllById(anyCollection());
+        verify(repo,times(1)).saveAll(anyCollection());
+
+
+
+    }

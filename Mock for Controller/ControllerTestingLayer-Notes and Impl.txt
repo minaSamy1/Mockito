@@ -1,0 +1,699 @@
+
+
+Controller Testing  :
+          
+		  Unit Testing  : to test the method only and mocking from the services
+		                when(bookService.findById(1L)).thenReturn(mockBook);
+		  
+		  Integration Testing  : to test the APi with all layers 
+		  
+ common annotion 
+ 
+ 🟢 Testing Annotations (Controller Layer)
+
+
+     
+- Unit Testing 
+	@WebMvcTest(YourController.class) → يرفع الـController بس (Mock للـService).
+
+         But WebMvcTest not working with me some of configuration not create beans so i used @SpringBootTest 
+	
+
+ -Common Annotion
+ 
+	@MockBean → تعمل Mock للـService اللي جوه الـController.
+
+	@Autowired → Inject لـ MockMvc أو TestRestTemplate.
+
+	@Test → الميثود بتاعة التست.
+  
+    @Verify   > to make sure the method called or not
+	 
+	@BeforeEach / @AfterEach → setup & cleanup.
+
+	@ParameterizedTest + @ValueSource → لو عاوز تجرب inputs مختلفة.
+	
+	
+
+- Integration TEsting 
+     
+	@AutoConfigureMockMvc → يخلّي عندك MockMvc جاهز تستخدمه.
+
+	@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT) → Integration test بالـcontext كله.
+	
+	
+ 🟡 Assertions & Utils
+
+	status().isOk() / isCreated() / isNotFound() 
+
+	content().json(...) / content().string(...)
+	
+          .andExpect(content().json("{\"id\":58,\"name\":\"cars\",\"quantity\":3,\"price\":1000}"))   /// incase api return json
+		  .andExpect(content().string("Hello-World"))                                                 // incase api return string
+		  
+		  
+		  
+	jsonPath(...) → تفحص response JSON.
+            andExpect(jsonPath("$.length()", greaterThan(0)))   /// to check the list have more than items
+			.andExpect(jsonPath("$.title").value("Spring Boot"))
+			
+			
+			
+			
+	mockMvc.perform(get("/api/books")...) → تستدعي API.
+	
+	  
+	  
+	
+Steps How to Call Api : 
+   
+   1- Get Api  
+   
+           mockMvc.perform(get("/api/books"))
+		  .andExpect(status().isOk());
+		  
+		>>	incase you have Path Variable 
+				  mockMvc.perform(   get("/api/books/{id}", 1)    )
+				  
+			
+		>>	incasee we have Query Paramter 
+				 mockMvc.perform(get("/api/books")
+						.param("title", "Java"))
+						
+  2- POST / PUT  where take Body paramter  [ we must define ContentType ]
+       
+	   - Sending Body as Json 
+			mockMvc.perform(
+			       post("/api/books")
+			   .contentType( MediaType.APPLICATION_JSON   )        // Fixed Steps 
+			   .content("{\"title\":\"Spring Boot\"}")
+			   
+			   )       // Sending the Json object 
+		   .andExpect(status().isCreated());
+		   
+	  -  Using ObjectMapper to send jave class as string instead json 
+	    
+		+ Write object → JSON
+		         Book book = new Book(1L, "Spring Boot", true);
+			  
+			 mockMvc.perform(post("/api/books")
+            .contentType(MediaType.APPLICATION_JSON)           // Fixed Steps 
+            .content(objectMapper.writeValueAsString(book))     // convert object to String 
+	  
+	   + Read Json ---> Json 
+	       incase you need to read the return Json from Api to be class 
+		    
+			MvcResult result = mockMvc.perform(get("/api/books/1"))
+                              .andExpect(status().isOk())
+                            .andReturn();
+
+				String json = result.getResponse().getContentAsString();
+				Book book = objectMapper.readValue(json, Book.class);
+
+
+    >>>>>>>>>>> DON'T FORGET TO CHECK THE VALIDATION ON YOUR OBJECT WHILE TESTING THE api <<<<<<<<<<<<<<<<<<<<<
+	             i mean in some Entiy mabye have validation like @Min  , @NotNull so try 
+				to post object and this validation should fire 
+				
+	for example : if we have  
+			@Past(message = " please enter the old date ")
+			private LocalDate birth;
+			
+			
+		     Author newAuthor= new Author( LocalDate.of(2994,06,5)  , "mina" ) ;     // here we put date in Future 
+			        mockMvc.perform(post(url)
+                .contentType( MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(newAuthor)) ).andExpect(status().isBadRequest()) ;
+	   
+	   
+  3- Delete 
+     
+	    mockMvc.perform(delete("/api/books/1"))
+       .andExpect(status().isNoContent());
+	  
+	
+ Assertion in MockMVC :
+     the assertion here it's little different in anther unit test 
+	  because you can make the assertion in same mehtod whrere you call api by using
+	       [  andExpect()   ]
+		   
+		   
+		1-   HTTP Response (status, headers, content type)
+		
+		    mockMvc.perform(get("/api/books"))
+			   .andExpect(status().isOk())                        // 200
+			   .andExpect(content().contentType("application/json"))
+			   .andExpect(header().exists("Content-Length"));
+			   
+			   
+		2- or checking value in response json  using jsonPath
+		   
+		    .andExpect(status().isOk())
+			   .andExpect(jsonPath("$.id").value(1))              // field id = 1
+			   .andExpect(jsonPath("$.title").value("Spring Boot"))
+			   .andExpect(jsonPath("$.available").value(true));
+			   
+		3- incase response return as Array/List 
+		
+	    mockMvc.perform(get("/api/books"))
+       .andExpect(status().isOk())
+       .andExpect(jsonPath("$.length()").value(3))        // size = 3   /// very important
+	    andExpect(jsonPath("$.length()", greaterThan(0)))   /// to check the list have more than items
+       .andExpect(jsonPath("$[0].title").value("Java"));            
+		
+		
+  when to Use Assertion andExpect()   Or andReturn  ? 
+  
+  
+   ✅ andExpect(...)
+
+	Used to make assertions directly inside the same chain.
+
+	Suitable when you don’t need to work with the response itself,
+	 just want to check the status or certain JSON fields.
+   
+    [ monasb fe 7alt lw ana m4 m7tag asht8al 3al el respnse data nafsha and bs m7tag a3ml check status [
+	
+	      mockMvc.perform(get("/api/books"))
+			   .andExpect(status().isOk())                        // 200
+			   .andExpect(content().contentType("application/json"))
+			   .andExpect(header().exists("Content-Length"));
+	
+  ✅ andReturn()
+
+	   Returns an MvcResult so you can grab the response and work with it manually.
+
+			 You need it if you want to: When To use ?
+
+				Read the response body as a String.
+
+				Convert it with objectMapper.readValue(...).
+
+				Store the result and reuse it in another test step.
+		
+		MvcResult result = mockMvc.perform(get("/api/books/1"))
+                          .andExpect(status().isOk())
+                          .andReturn();
+
+			String json = result.getResponse().getContentAsString();
+			Book book = objectMapper.readValue(json, Book.class);
+
+			assertEquals("Spring Boot Testing", book.getTitle());
+			
+			or if you will hold list of object 
+			
+			List<Book> books = objectMapper.readValue(json, new TypeReference<List<Book>>() {});
+
+			>>>>>>>>>>>>>>>>>>>>   <<<<<<<<<<<<<<<<<<<<<<<<<<<
+			if you read list of Object 
+			
+			  List<Book> returnBooks = objectMapper.readValue(response, new TypeReference<List<Book>>() {});
+
+			
+ 🔑 Summary:
+
+	Use andExpect → when simple direct assertions (status, JSONPath, etc.) are enough.
+
+	Use andReturn → when you need to work with the response (parse JSON → object, or reuse result in another test).
+	
+	
+	
+	
+ - Hints : 
+ 
+     - you can define the URL as static variable and call it in any mehtod  
+	          private static final String BASE_URL = "/author"
+			  
+			  
+     - bos ya mina talma fe class enta 7attet @MockBean  , MockitoBean hawa kda mn not working as integration testing
+	     because you use mockito so any metod will wait unitll you mock the service or repo 
+		 
+		 Exmple : if your class using mockito and in test method you did'nt moct so the repsonse 
+		            will be null .
+					
+        MvcResult result = mockMvc.perform(post("/book")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new Book(true, "2323dsa", 32, "title"))))
+                .andExpect(status().isOk())
+                .andReturn();
+ 
+    - don't Forget to check the validation of any entity while you posting api 
+	
+	- to check Assertion of return response which have list of Object 
+	      
+		      andExpect(jsonPath("$.length()").value(3))
+		
+		if you need operation like greater than  [   import static org.hamcrest.Matchers.greaterThan;  ]
+		
+		    andExpect(jsonPath("$.length()",greaterThan(0)))    /// length> 0
+	
+	- to read the List of object from Api response after calling it 
+	
+	        List<Book> returnBooks = objectMapper.readValue(response, new TypeReference<List<Book>>() {});
+	
+	- you can use aslo ( verify ) like service Layer Testing to make sure the method which you are 
+	    mocked already Tested 
+		     verify(services,times(1)).getAuthor();
+
+	
+	
+ Here Below Example about the Same Api in both case ( Unit Testing  /  Integration Testing )
+ 
+ 
+Unit Test (MockMvc + @WebMvcTest)
+
+هنا بنختبر الـ Controller بس، وبنعمل Mock للـService عشان نعزله:
+
+@WebMvcTest(BookController.class)
+class BookControllerUnitTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private BookService bookService;
+
+    @Test
+    void testGetBookById_Unit() throws Exception {
+	
+        Book mockBook = new Book(1L, "Spring Boot Testing");
+
+        when(bookService.findById(1L)).thenReturn(mockBook);
+
+        mockMvc.perform(get("/api/books/1"))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.title").value("Spring Boot Testing"));
+    }
+}
+
+    - Here No DB  exist but we simulate it by Mocking 
+	
+	
+- Integration Testing  
+
+		@SpringBootTest
+		@AutoConfigureMockMvc
+		class BookControllerIntegrationTest {
+
+			@Autowired
+			private MockMvc mockMvc;
+
+			@Autowired
+			private BookRepository bookRepository;
+
+			@BeforeEach
+			void setup() {
+				bookRepository.deleteAll();
+				bookRepository.save(new Book(1L, "Spring Boot Testing"));
+			}
+
+			@Test
+			void testGetBookById_Integration() throws Exception {
+				mockMvc.perform(get("/api/books/1"))
+					   .andExpect(status().isOk())
+					   .andExpect(jsonPath("$.title").value("Spring Boot Testing"));
+			}
+		}
+		
+		
+	
+	------------------ Example of Controller Unit Testing with Mocking ----------------------------
+	
+	
+	
+	
+@SpringBootTest
+@AutoConfigureMockMvc
+
+public class AuthorControllerTest {
+
+    private final String URL_PATH="/author";
+
+	@Autowired
+	private ObjectMapper objectMapper ;
+	
+	
+    @MockitoBean
+    private AuthorServices services;
+
+    @Autowired
+    private MockMvc mockMvc;
+	
+	
+    @Test
+    public void getAuthorTest() throws Exception {
+
+        List<Author> authors = Arrays.asList(
+
+                new Author("mina"), new Author("marco")
+        );
+
+
+        when(services.getAuthor()).thenReturn(authors);
+       // System.out.println(mockMvc.perform(get(URL_PATH)).andReturn().getResponse().getContentAsString() );
+        mockMvc.perform(get("/author")).andExpect(status().isOk()).
+                andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].name").value("mina"));
+
+        verify(services,times(1)).getAuthor();
+
+    }
+
+    @Test
+    public void getAuthorEmptyTest() throws Exception {
+
+        List<Author> authors = Arrays.asList(
+
+                new Author("mina "), new Author("marco")
+        );
+
+
+        when(services.getAuthor()).thenReturn(Collections.emptyList());
+        System.out.println(mockMvc.perform(get(URL_PATH)).andReturn().getResponse().getContentAsString() );
+        mockMvc.perform(get("/author")).andExpect(status().isOk()) ;
+
+    }
+
+    @Test
+    public void addAuthorTest() throws Exception {
+
+
+        Author newAuthor= new Author( LocalDate.of(1994,06,5)  , "mina" ) ;
+        Author savedAutor = new Author(1L, LocalDate.of(2994,06,5), "mina" ) ;
+
+        when(services.addAuthor(newAuthor)).thenReturn(savedAutor) ;
+
+
+         String url=URL_PATH ;
+        mockMvc.perform(
+                         post(url)
+                        .contentType( MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(newAuthor))
+                     )
+
+                .andExpect(status().isOk()) ;
+
+
+    }
+
+    @Test
+    public void addAuthorBadRequestValidationTest() throws Exception {
+
+
+        Author newAuthor= new Author( LocalDate.of(2994,06,5)  , "mina" ) ;
+        Author savedAutor = new Author(1L, LocalDate.of(2994,06,5), "mina" ) ;
+
+        when(services.addAuthor(newAuthor)).thenReturn(savedAutor) ;
+        String url=URL_PATH ;
+        mockMvc.perform(post(url)
+                .contentType( MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(newAuthor)) ).andExpect(status().isBadRequest()) ;
+
+
+    }
+
+    @Test
+    public void UpdateAuthorTest() throws Exception {
+
+
+       // Author newAuthor= new Author( LocalDate.of(1994,06,5)  , "mina" ) ;
+        Author updateAutor = new Author(1L, LocalDate.of(1994,06,5), "mina" ) ;
+
+        when(services.updateAuthor(any())).thenReturn(updateAutor) ;
+
+
+        String url=URL_PATH+"/update";
+        mockMvc.perform(
+                        post(url)
+                                .contentType( MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(updateAutor))
+                )
+
+                .andExpect(status().isOk()) ;
+
+
+    }
+
+
+
+    @Test
+    public void deleteAuthor() throws Exception {
+
+
+       doNothing().when(services).deleteAuthor(1l);
+
+        String url=URL_PATH ;
+        mockMvc.perform(
+                delete(url).
+                        queryParam("id",String.valueOf(1l)
+                        )
+
+        ).andExpect(status().isOk());
+
+
+    }
+
+
+    @Test
+    public void getBookOfAuthor() throws Exception {
+
+        List<Book> bookList = Arrays.asList(
+
+                new Book(true, "123123", 1L, 23, "book1"),
+                new Book(true, "123zxczc", 2l, 43, "book2")
+        );
+
+
+        when(services.getBooksOfAuthor(anyLong())).thenReturn(bookList);
+
+        String url=URL_PATH+"/{id}/books";
+        MvcResult result=   mockMvc.perform(
+                       get(url, 1l)
+
+
+        ).andExpect(status().isOk()).andReturn();
+
+        String response= result.getResponse().getContentAsString() ;
+        List<Book> returnBooks= (List<Book>) objectMapper.readValue(response, new TypeReference<List<Book>>() {});
+
+
+        System.out.println(returnBooks.size());
+
+
+        Assertions.assertTrue(returnBooks.size()>0);
+
+
+    }
+
+    @Test
+    public void getBookOfAuthorEmptyList() throws Exception {
+
+
+
+        when(services.getBooksOfAuthor(anyLong())).thenReturn(Collections.emptyList());
+
+        String url=URL_PATH+"/{id}/books";
+        MvcResult result=   mockMvc.perform(
+                get(url, 1l)
+
+
+        ).andExpect(status().isOk()).andReturn();
+
+        String response= result.getResponse().getContentAsString() ;
+        List<Book> returnBooks= (List<Book>) objectMapper.readValue(response, new TypeReference<List<Book>>() {});
+
+
+        System.out.println(returnBooks.size());
+
+
+        Assertions.assertFalse(returnBooks.size()>0);
+
+
+    }
+	
+	
+	
+	------------------------- The same Class with Integration Testing ---------------------------
+	
+	
+1- the only different here we will never use the mocckito 
+    so we must herer calling api with order to allow testing you testing the others api or method 
+	
+	
+	i mean you can't test the Get Method incase you did'nt already have data in DB 
+	( y3ny maynf3e4 by  logic eny a3ml mathl get w ana  m4 3any data ana a2bl kda kont baarg3 el data mn mocikto
+	   lakn hna ana ma3de4 7aga  w kaman el data btkon fe momery DB 
+	   
+	   
+ 2- eny a3ml test ll class kolo 3al b3d 3al mathln lw awl test kan by3ml POST data w tany mehtod Get 
+      lw barn kol method lw7da kda el get kol mara m4 haykon feha 7aga 
+	  lakn lma arn el class kda kda el data hatkon fe nafs el session w m4 deleted 
+	  
+	  
+	  public class AuthorControllerIntegrationTest {
+
+    private final String URL_PATH = "/author";
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private AuthorRepo repo;
+
+    @BeforeEach
+    public void initMethod() {
+        repo.deleteAll();
+//        Author outher = new Author("mina");
+//        Author saveed = repo.save(outher);
+//        System.out.println(" Init Testing Saving  the author ");
+    }
+
+    @Test
+    public void addAuthorTest() throws Exception {
+
+
+        Author newAuthor = new Author(LocalDate.of(1994, 06, 5), "mina");
+        Author savedAutor = new Author(1L, LocalDate.of(2994, 06, 5), "mina");
+
+
+        String url = URL_PATH;
+        MvcResult result = mockMvc.perform(
+                        post(url)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(newAuthor))
+                )
+                .andExpect(status().isOk()).andReturn();
+
+        String response = result.getResponse().getContentAsString();
+        System.out.println(" Api Response " + response);
+
+
+    }
+
+    @Test
+    public void getAuthorTest() throws Exception {
+        Author outher = new Author("mina");
+        Author saveed = repo.save(outher);
+        System.out.println(" Init Testing Saving  the author ");
+
+        // System.out.println(mockMvc.perform(get(URL_PATH)).andReturn().getResponse().getContentAsString() );
+        mockMvc.perform(get("/author")).andExpect(status().isOk()).
+                andExpect(jsonPath("$.length()", greaterThan(0)))
+                .andExpect(jsonPath("$[0].name").value("mina"));
+
+
+    }
+
+    @Test
+    public void getAuthorEmptyTest() throws Exception {
+
+
+        System.out.println(mockMvc.perform(get(URL_PATH)).andReturn().getResponse().getContentAsString());
+        mockMvc.perform(get("/author")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+
+    }
+
+    @Test
+    public void addAuthorBadRequestValidationTest() throws Exception {
+
+
+        Author newAuthor = new Author(LocalDate.of(2994, 06, 5), "mina");
+
+
+        String url = URL_PATH;
+        mockMvc.perform(post(url)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(newAuthor))).andExpect(status().isBadRequest());
+
+
+    }
+
+    @Test
+    public void UpdateAuthorTest() throws Exception {
+
+
+        // Author newAuthor= new Author( LocalDate.of(1994,06,5)  , "mina" ) ;
+        Author updateAutor = new Author(1L, LocalDate.of(1994, 06, 5), "mina");
+
+
+        String url = URL_PATH + "/update";
+        mockMvc.perform(
+                        post(url)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(updateAutor))
+                )
+
+                .andExpect(status().isOk());
+
+
+    }
+
+
+    @Test
+    public void deleteAuthor() throws Exception {
+
+
+        String url = URL_PATH;
+        mockMvc.perform(
+                delete(url).
+                        queryParam("id", String.valueOf(1l)
+                        )
+
+
+        ).andExpect(status().isOk());
+
+
+    }
+
+ 
+    @Test
+    public void getBookOfAuthor() throws Exception {
+
+
+        String url = URL_PATH + "/{id}/books";
+        MvcResult result = mockMvc.perform(
+                get(url, 1l)
+
+
+        ).andExpect(status().isOk()).andReturn();
+
+        String response = result.getResponse().getContentAsString();
+        List<Book> returnBooks = (List<Book>) objectMapper.readValue(response, new TypeReference<List<Book>>() {
+        });
+
+
+        System.out.println(returnBooks.size());
+
+
+        Assertions.assertTrue(returnBooks.size() > 0);
+
+
+    }
+
+    //
+    @Test
+    public void getBookOfAuthorEmptyList() throws Exception {
+
+
+        String url = URL_PATH + "/{id}/books";
+        MvcResult result = mockMvc.perform(
+                get(url, 1l)
+
+
+        ).andExpect(status().isOk()).andReturn();
+
+        String response = result.getResponse().getContentAsString();
+        List<Book> returnBooks = (List<Book>) objectMapper.readValue(response, new TypeReference<List<Book>>() {
+        });
+
+
+        System.out.println(returnBooks.size());
+
+
+        Assertions.assertFalse(returnBooks.size() > 0);
+
+
+    }

@@ -1,0 +1,41 @@
+--------------------------  @DataJpaTest  Mockito with database Repo layer  --------------------------
+
+1- if we have repo and need to check the data which return from database is correct 
+  kindly note we did'nt have every think n databasebut we consider we run script insert statment and 
+  validate the data from it 
+  
+  @DataJpaTest >> this very import annotation while you test data layer as this anniotation start the DB and create the table and run the .sql  ( i talk as i used h2 DB )
+   
+  
+  1- JPA Repo 
+  
+  public interface ItemRepository extends JpaRepository<Item,Integer> { }
+  
+  
+  - test case 
+      -1 we check number of row return from DB same as we insert 
+	  
+	  @DataJpaTest
+	public class itemRepositoryTest {
+			@Autowired
+			private ItemRepository itemRepository;
+
+			@Test
+			public void testFindAll() {
+				List<Item> items = itemRepository.findAll();  //// here we call this function which return with list of Item in DB
+				System.out.println(" count of row returned from DB " + items.size());
+				assertEquals(items.size(), 3);   // we expect to return with 3 
+
+			}
+			
+			
+	 - here we need to check the other function in our repo which is findById()
+	 
+	 
+    @Test
+    public void testFindById() {
+        Optional<Item> item = itemRepository.findById(2);
+        System.out.println(" read Name : " + item.get().getName());
+        assertEquals(item.get().getName(), "product27");   /// unit test to check after we return the item which has id 2 this item name is product27
+    }
+	
