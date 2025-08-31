@@ -22,6 +22,7 @@ We don’t use Mockito for repository tests because we need to interact with a r
 - Repo Testing :
       where we already test the data and Query in DB So it's Integration Testing Not Unit test
 	  usually used like H2-Momery DB to perform our testing 
+
 	  
  - Common Annotation 
  
@@ -55,6 +56,23 @@ We don’t use Mockito for repository tests because we need to interact with a r
 		
 		
   Hint's :
+  
+     - we need to define configution for our h2 DB so the best practice to create 
+	        
+			1- application-test.properties as profile 
+			2- adding H2 config
+			    
+				spring.datasource.url=jdbc:h2:mem:testdb
+				spring.datasource.driverClassName=org.h2.Driver
+				spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+				spring.jpa.hibernate.ddl-auto=create-drop
+				spring.h2.console.enabled=true
+				spring.h2.console.path=/h2-console
+				
+				
+	    3- in the main application we define the profile 
+               spring.profiles.active=test
+  
      - in any Test class for Repo you must inject your Repo which you will Test
 	         @Autowired
 			   private BookRepository repo ;
