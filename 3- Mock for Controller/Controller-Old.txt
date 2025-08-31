@@ -1,0 +1,235 @@
+ ----------------------------------- Mcokito with RestApi  Controller ---------------------------
+ we will know how to test api 
+    1- return with String
+	2- return json object 
+	3- return array of object
+ 
+   @GetMapping(value="/hello")
+    public String test()
+    {
+        System.out.println(" im in the Reall controller");
+        return "Hello-World";
+    }
+
+- the unit test
+		@WebMvcTest(HelloWorldController.class  /// define which controller 
+		public class HelloWorldControllerTest {
+			@Autowired
+			private MockMvc mockMvc;
+			@Test
+			public void test_basic() throws Exception {
+				   /// 1- defining the URL of Api
+				RequestBuilder req = MockMvcRequestBuilders
+						.get("/hello").
+						accept(MediaType.APPLICATION_JSON_VALUE);
+						
+					/// 2- call api
+				MvcResult result = mockMvc.perform(req).andReturn();
+				
+				// asseration
+				assertEquals("Hello-World", result.getResponse().getContentAsString());
+
+
+			}
+		}
+  
+  
+  
+  2- the secod way is to expect the result from api it if the accpected is corrent then pass the test case 
+    @Test
+    public void test_basic() throws Exception {
+        RequestBuilder req = MockMvcRequestBuilders
+                .get("/hello").
+                accept(MediaType.APPLICATION_JSON_VALUE);
+        MvcResult result = mockMvc.perform(req)
+                .andExpect(status().isOk())                                   /// here we expect to api return 200 OK   if the api return acutly reurn for example 202 will failed the tet unit
+                .andExpect(content().string("Hello-World")).andReturn();    // here we expect return Hello-world if anther keyword the unittest will faild
+              // no need for assetion
+   
+
+    }
+	
+	
+	
+3- tyb ana delw2ty 3ndy api w ana 3awez a3ml check 3al el result bt3 el json elly rag3
+
+@GetMapping(value="/items")
+    public Item dummyItems()
+    {
+
+		return new Item(5,"cars",3,1000);    /// return as josn
+    }
+  
+   @Test
+    public void test_basic() throws Exception {
+        RequestBuilder req = MockMvcRequestBuilders
+                .get("/items").
+                accept(MediaType.APPLICATION_JSON_VALUE);
+
+        MvcResult result = mockMvc.perform(req)
+                .andExpect(status().isOk())
+                .andExpect(content().json("{\"id\":58,\"name\":\"cars\",\"quantity\":3,\"price\":1000}")).andReturn();
+				/// here the json we expect not match the actual json return from api so the unit test will faild
+				
+				// can check also one value in json
+				 .andExpect(content().json("{\"id\":5}")).andReturn();   //>>>>>>>>. import 
+
+    }
+  
+  
+  
+-----------------------    @MockBean   in controller where the api depend on the Repo  ==========
+		- summary in the testing class we need to mock the repo class and make it return the value 
+		and the api will use the return from the repo   
+		
+		
+	1- Repo
+		
+		@Component
+		public class ItemRepo {
+
+				public Item retriveItems() {
+      
+												return new Item(5, "kola", 4, 55);
+									}
+	
+	2- Controller 
+	   
+		   
+		 @GetMapping(value="/itemsReal")
+				public Item realItems()
+				{
+
+					System.out.println( "Enter the Controller  for this api");
+					return  itemRepo.retriveItems();
+				}
+				
+	3- testing     ( here we receive object as json )
+				@MockBean
+				  private ItemRepo itemRepo;           /// here we mock the depency repo 
+						@Test
+						public void test_RealData_FromRepo() throws Exception {
+
+							when(itemRepo.retriveItems()).thenReturn( new Item(2,"kola",4,55));    /// here we set the value for method which we depend on it in the controller
+							RequestBuilder req = MockMvcRequestBuilders
+									.get("/itemsReal").
+									accept(MediaType.APPLICATION_JSON_VALUE);
+
+
+							MvcResult result = mockMvc.perform(req)
+									.andExpect(status().isOk())                      // we expect to return 200
+									.andExpect(content().json("{\"id\":2,\"name\":\"kola\",\"quantity\":4,\"price\":55}")).andReturn();  // we expect this json
+						}
+						
+						
+						
+		------------------------ incase we  have api depend on service which receive the list of object return from DB -----------------
+		
+		
+		
+	1- our services call from repo DB 
+	
+	  public List<Item> retriveItemsfromDB() {
+        List<Item> items = repo.findAll();            ///////// jpa Repo 
+        System.out.println("size of item list " + items.size());
+        for (Item item : items) {
+
+            item.setValue(item.getPrice() * item.getQuantity());
+        }
+        return items;
+
+    }
+	
+	
+	2- controller  
+	
+	   @GetMapping(value="/itemsRealDB")
+    public List<Item> realItemsDB()
+    {
+        return  itemServices.retriveItemsfromDB();
+    }
+	
+	
+	
+	
+	3- Testing unit for api return data (   array of Object )  from services 
+	
+	            //[
+						//        {
+						//            "id": 1,
+						//                "name": "product1",
+						//                "quantity": 4,
+						//                "price": 100,
+						//                "value": 400
+						//        },
+						//        {
+						//            "id": 2,
+						//                "name": "product2",
+						//                "quantity": 43,
+						//                "price": 32,
+						//                "value": 1376
+						//         }
+				//        ]
+	
+	@Test
+    public void test_RealData_FromRepo() throws Exception {
+
+
+        // we consider as the ItemService run well and returned with the blow json
+        when(itemServices.retriveItemsfromDB()).thenReturn(
+
+                Arrays.asList(
+                        new Item(2, "kola", 4, 55),
+                        new Item(3, "Pepsico", 4, 3)
+                )
+
+        );
+        RequestBuilder req = MockMvcRequestBuilders
+                .get("/itemsRealDB").
+                accept(MediaType.APPLICATION_JSON_VALUE);
+
+        MvcResult result = mockMvc.perform(req)
+                .andExpect(status().isOk())
+				     /// kindly note here we define the response as array of objects as
+                .andExpect(content().json("[{\"id\":2,\"name\":\"kola\",\"quantity\":4,\"price\":8},{}]")).andReturn(); 
+    }
+	
+	
+### if we change any value in expected json 
+   1- java.lang.AssertionError: [0] Could not find match for element {"quantity":4,"price":98,"name":"kola","id":2}
+   2- java.lang.AssertionError:   Expected: a JSON object   got: a JSON array    ( this because expect the return as json object not array )
+ 
+ 
+ 
+ 
+ 
+ ------------------------------- unit testing for Api typ HTTP POST -------------------------
+   - it same as the Get Api but here we send the body of requsest  in MockMvcRequestBuilders
+    
+	1-  the api
+		@PostMapping (value="/item")
+		public void insertItm( Item item)
+		{
+			System.out.println( " read obect "+ item.toString());
+		}
+ 
+ 
+ 2- the unit Test
+     @Test
+    public void test_Post() throws Exception {
+        RequestBuilder req = MockMvcRequestBuilders.
+		post("/item").                   >>>>>>>>>>>>>>>> here we define it as POST Request
+		content("{\"id\":2,\"name\":\"kola\",\"quantity\":4,\"price\":8}").   >>>>>>>>>>> send the body object
+		contentType(MediaType.APPLICATION_JSON_VALUE);
+
+
+
+        MvcResult result = mockMvc.perform(req).
+                andExpect(status().isOk())                >>>>>>>> here we expect return with success 200 OK
+                .andReturn();
+
+
+    }
+ 
+ 
+ 

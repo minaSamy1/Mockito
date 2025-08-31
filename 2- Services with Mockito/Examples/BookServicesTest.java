@@ -1,0 +1,279 @@
+package com.example.spring_jpa.services;
+
+import com.example.spring_jpa.CustomBook;
+import com.example.spring_jpa.Services.BookServices;
+import com.example.spring_jpa.entity.Book;
+import com.example.spring_jpa.repository.BooksRepo;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.*;
+import org.springframework.stereotype.Service;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+public class BookServicesTest {
+
+    @InjectMocks
+    private BookServices services;
+
+    @Mock
+    private BooksRepo repo;
+
+
+    @Test
+    public void saveBookTest() {
+
+        when(
+                repo.save(any())
+        ).thenReturn(new Book(true, "dasd1432", 1L, 43, "book1"));
+
+        Book savedBook = services.addBook(new Book());
+
+        Assertions.assertNotNull(savedBook);
+        Assertions.assertEquals("book1", savedBook.getTitle());
+
+        verify(repo, times(1)).save(any());
+
+    }
+
+    @Test
+    public void savedBookFailed() {
+
+        when(repo.save(any())).thenReturn(null);
+
+
+        Book savedBook = services.addBook(new Book());
+        Assertions.assertNull(savedBook);
+
+        verify(repo, times(1)).save(any());
+
+    }
+
+    @Test
+    public void getBooksuccess() {
+
+
+        List<Book> bookList = Arrays.asList(
+
+                new Book(true, "123123", 1L, 23, "book1"),
+                new Book(false, "123zxczc", 2l, 43, "book2")
+        );
+
+        when(repo.findAll()).thenReturn(bookList);
+
+        List<Book> books = services.getBook();
+
+        Assertions.assertTrue(books.size() > 0);
+
+        verify(repo, times(1)).findAll();
+    }
+
+    @Test
+    public void getBookFailed() {
+
+
+        when(repo.findAll()).thenReturn(Collections.emptyList());
+
+        List<Book> books = services.getBook();
+        Assertions.assertTrue(books.isEmpty());
+    }
+
+
+    @Test
+    public void getBookByTitleTest() {
+
+        List<Book> bookList = Arrays.asList(
+
+                new Book(true, "123123", 1L, 23, "book1"),
+                new Book(false, "123zxczc", 2l, 43, "book2")
+        );
+
+
+        when(repo.findByTitle(anyString())).thenReturn(bookList);
+
+        List<Book> books = services.getBookByTitle(anyString());
+
+        Assertions.assertTrue(books.size() > 0);
+
+        Assertions.assertNotNull(books);
+
+        verify(repo, times(1)).findByTitle(anyString());
+
+
+    }
+
+    @Test
+    public void getbookByTitleFaild() {
+
+        when(repo.findByTitle(anyString())).thenThrow(NullPointerException.class);
+
+        Assertions.assertThrows(NullPointerException.class, () -> services.getBookByTitle(anyString()));
+
+        verify(repo, times(1)).findByTitle(anyString());
+
+    }
+
+
+    @Test
+    public void getBookByAvailability() {
+
+
+        List<Book> bookList = Arrays.asList(
+
+                new Book(true, "123123", 1L, 23, "book1"),
+                new Book(true, "123zxczc", 2l, 43, "book2")
+        );
+
+        when(repo.findByavailable(anyBoolean())).thenReturn(bookList);
+
+        List<Book> books = services.getBookByAvaliablity(anyBoolean());
+
+        Assertions.assertTrue(books.size() > 0);
+
+        verify(repo, times(1)).findByavailable(anyBoolean());
+
+
+    }
+
+
+    @Test
+    public void getBookByAvailabilityFaild() {
+
+
+        when(repo.findByavailable(anyBoolean())).thenReturn(Collections.emptyList());
+
+        List<Book> books = services.getBookByAvaliablity(anyBoolean());
+        Assertions.assertTrue(books.isEmpty());
+    }
+
+
+    @Test
+    public void getCustomBooks() {
+        List<CustomBook> customBookList = Arrays.asList(
+
+                new CustomBook() {
+                    @Override
+                    public Long getId() {
+                        return 1L;
+                    }
+
+                    @Override
+                    public String getTitle() {
+                        return "book1";
+                    }
+
+                    @Override
+                    public String getFullDesc() {
+                        return "book1 mina";
+                    }
+                },
+                new CustomBook() {
+                    @Override
+                    public Long getId() {
+                        return 2L;
+                    }
+
+                    @Override
+                    public String getTitle() {
+                        return "boook2";
+                    }
+
+                    @Override
+                    public String getFullDesc() {
+                        return "boook2 Marco";
+                    }
+                }
+
+        );
+
+        when(repo.getCutomeBooks()).thenReturn(customBookList);
+
+        List<CustomBook> cusotm = services.getBookCustomized();
+
+        Assertions.assertTrue(cusotm.size() > 0);
+
+        verify(repo, times(1)).getCutomeBooks();
+
+    }
+
+
+    @Test
+    public void getBookPagable() {
+        int page = 0;
+        int size = 5;
+        String sortBy = "title";
+        String sortType="asc";
+
+        Sort sort = Sort.by(sortBy).ascending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        List<Book> books = Arrays.asList(
+                new Book(true, "123123", 1L, 23, "book1"),
+                new Book(true, "123zxczc", 2l, 43, "book2")
+        );
+
+        Page<Book> pageableBook = new PageImpl<>(books);
+        when(repo.findAll(pageable)).thenReturn(pageableBook);
+
+
+        Page<Book> pageReturned =services.getBookspageable(page, size,sortBy, sortType);
+
+
+
+        Assertions.assertTrue(pageReturned.getTotalElements()>0);
+        Assertions.assertTrue(pageReturned.getTotalPages()>0);
+
+
+        ///verify(repo,times(1)).findAll(pageable);
+    }
+
+
+
+    @Test
+    public void softDeletedTest()
+    {
+
+
+        services.updateBookAsDeleted(anyLong());
+
+        verify(repo, times(1)).softDeleteBook(anyLong());
+
+    }
+
+
+    @Test
+    public void MarkBook()
+    {
+        List<Book> books = Arrays.asList(
+                new Book(true, "123123", 1L, 23, "book1"),
+                new Book(true, "123zxczc", 2l, 43, "book2")
+        );
+
+
+        when(repo.findAllById(anyCollection())).thenReturn(books);
+
+
+        when(repo.saveAll(books)).thenReturn(books) ;
+
+
+        List<Long> ids= Arrays.asList(1L,3L,5L,6L);
+        services.markBookAsAvaliable(ids);
+
+
+        verify(repo,times(1)).findAllById(anyCollection());
+        verify(repo,times(1)).saveAll(anyCollection());
+
+
+
+    }
+}
